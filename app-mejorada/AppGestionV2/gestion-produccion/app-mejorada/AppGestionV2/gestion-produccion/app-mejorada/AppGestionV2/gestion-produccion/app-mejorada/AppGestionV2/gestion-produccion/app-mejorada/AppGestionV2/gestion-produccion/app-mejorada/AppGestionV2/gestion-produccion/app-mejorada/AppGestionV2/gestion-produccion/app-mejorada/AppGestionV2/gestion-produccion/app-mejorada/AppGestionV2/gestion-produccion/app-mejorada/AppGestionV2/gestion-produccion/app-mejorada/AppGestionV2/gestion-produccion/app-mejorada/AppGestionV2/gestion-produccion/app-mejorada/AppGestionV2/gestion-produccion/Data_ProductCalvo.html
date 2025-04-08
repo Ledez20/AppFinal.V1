@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis de Producción - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            color: #2c3e50;
+        }
+
+        .dashboard-container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            border: none;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid #eee;
+            padding: 20px;
+            border-radius: 12px 12px 0 0 !important;
+        }
+
+        .card-body {
+            padding: 25px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 25px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .stat-number {
+            font-size: 2.8rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+            margin-bottom: 20px;
+        }
+
+        .filter-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .table-responsive {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            padding: 15px;
+            font-weight: 600;
+        }
+
+        .table td {
+            padding: 12px 15px;
+            vertical-align: middle;
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .badge-descarga {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .badge-elaboracion {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .badge-clasificacion {
+            background-color: #f1c40f;
+            color: white;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .form-select, .form-control {
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .form-select:focus, .form-control:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .export-buttons {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .export-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            background: #3498db;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .export-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .export-btn:active {
+            transform: translateY(0);
+        }
+
+        .export-btn i {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <h1 class="mb-4">Dashboard de Producción</h1>
+        
+        <!-- Botones de exportación -->
+        <div class="export-buttons">
+            <button class="export-btn" onclick="exportarPDF()">
+                <i class="fas fa-file-pdf"></i> Exportar PDF
+            </button>
+            <button class="export-btn" onclick="exportarImagen()">
+                <i class="fas fa-image"></i> Exportar Imagen
+            </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filter-section">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="form-label">Período</label>
+                    <select class="form-select" id="periodo">
+                        <option value="7">Últimos 7 días</option>
+                        <option value="30">Últimos 30 días</option>
+                        <option value="90">Últimos 90 días</option>
+                        <option value="365">Último año</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Rol</label>
+                    <select class="form-select" id="rol">
+                        <option value="todos">Todos los roles</option>
+                        <option value="Descarga">Descarga</option>
+                        <option value="Elaboración">Elaboración</option>
+                        <option value="Clasificación">Clasificación</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fecha Inicio</label>
+                    <input type="date" class="form-control" id="fechaInicio">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fecha Fin</label>
+                    <input type="date" class="form-control" id="fechaFin">
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas Principales -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalOperaciones">0</div>
+                    <div class="stat-label">Total de Operaciones</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-number" id="promedioDiario">0</div>
+                    <div class="stat-label">Promedio Diario</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-number" id="eficiencia">0%</div>
+                    <div class="stat-label">Eficiencia General</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Tendencia de Producción</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="tendenciaChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Distribución por Rol</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="rolesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Operaciones Recientes -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Operaciones Recientes</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Rol</th>
+                                <th>Operación</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaOperaciones">
+                            <!-- Los datos se cargarán dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Función para cargar y procesar datos
+        function cargarDatos() {
+            try {
+                // Intentar cargar datos del localStorage
+                let notas = JSON.parse(localStorage.getItem('notas') || '[]');
+                console.log('Datos iniciales:', notas);
+
+                // Si no hay datos, intentar cargar desde el archivo principal
+                if (!notas || notas.length === 0) {
+                    console.log('Intentando cargar datos alternativos...');
+                    const datosPrincipal = JSON.parse(localStorage.getItem('datosProduccion') || '[]');
+                    if (datosPrincipal && datosPrincipal.length > 0) {
+                        notas = datosPrincipal;
+                        // Guardar los datos en 'notas' para futuras referencias
+                        localStorage.setItem('notas', JSON.stringify(notas));
+                        console.log('Datos alternativos cargados y guardados:', notas);
+                    } else {
+                        // Si no hay datos en ninguna ubicación, crear datos de ejemplo
+                        console.log('Creando datos de ejemplo...');
+                        notas = [
+                            {
+                                id: '1',
+                                fecha: new Date().toISOString(),
+                                rol: 'Descarga',
+                                personas: ['Juan'],
+                                contenido: 'Descarga de materiales'
+                            },
+                            {
+                                id: '2',
+                                fecha: new Date(Date.now() - 86400000).toISOString(),
+                                rol: 'Elaboración',
+                                personas: ['María'],
+                                contenido: 'Elaboración de productos'
+                            },
+                            {
+                                id: '3',
+                                fecha: new Date(Date.now() - 172800000).toISOString(),
+                                rol: 'Clasificación',
+                                personas: ['Pedro'],
+                                contenido: 'Clasificación de productos'
+                            }
+                        ];
+                        // Guardar los datos de ejemplo
+                        localStorage.setItem('notas', JSON.stringify(notas));
+                        console.log('Datos de ejemplo creados y guardados:', notas);
+                    }
+                }
+
+                // Procesar y formatear los datos
+                const notasProcesadas = notas.map(nota => {
+                    // Asegurar que la fecha esté en formato correcto
+                    let fecha = nota.fecha;
+                    if (!fecha) {
+                        fecha = new Date().toISOString();
+                    } else if (!fecha.includes('T')) {
+                        // Si la fecha no tiene hora, agregarla
+                        fecha = new Date(fecha).toISOString();
+                    }
+
+                    // Asegurar que el rol esté en formato correcto
+                    let rol = nota.rol;
+                    if (rol === 'Elaborado') {
+                        rol = 'Elaboración';
+                    }
+
+                    return {
+                        id: nota.id || Date.now().toString(),
+                        fecha: fecha,
+                        rol: rol || 'Sin rol',
+                        personas: Array.isArray(nota.personas) ? nota.personas : [nota.personas || 'Sin persona'],
+                        contenido: nota.contenido || nota.texto || 'Sin contenido'
+                    };
+                });
+
+                // Guardar los datos procesados
+                localStorage.setItem('notas', JSON.stringify(notasProcesadas));
+                console.log('Datos procesados y guardados:', notasProcesadas);
+                return notasProcesadas;
+            } catch (error) {
+                console.error('Error al cargar datos:', error);
+                return [];
+            }
+        }
+
+        // Función para sincronizar datos con MAAAAUUU.html
+        function sincronizarDatos() {
+            try {
+                // Cargar datos de MAAAAUUU.html
+                const datosPrincipal = JSON.parse(localStorage.getItem('datosProduccion') || '[]');
+                if (datosPrincipal && datosPrincipal.length > 0) {
+                    // Guardar en 'notas' para este dashboard
+                    localStorage.setItem('notas', JSON.stringify(datosPrincipal));
+                    console.log('Datos sincronizados desde MAAAAUUU.html');
+                }
+            } catch (error) {
+                console.error('Error al sincronizar datos:', error);
+            }
+        }
+
+        // Función para aplicar filtros
+        function aplicarFiltros(notas) {
+            const periodo = document.getElementById('periodo').value;
+            const rol = document.getElementById('rol').value;
+            const fechaInicio = document.getElementById('fechaInicio').value;
+            const fechaFin = document.getElementById('fechaFin').value;
+
+            let notasFiltradas = [...notas];
+
+            // Filtrar por rol
+            if (rol !== 'todos') {
+                notasFiltradas = notasFiltradas.filter(nota => nota.rol === rol);
+            }
+
+            // Filtrar por período
+            if (periodo !== 'todos') {
+                const hoy = new Date();
+                const dias = parseInt(periodo);
+                const fechaLimite = new Date(hoy.setDate(hoy.getDate() - dias));
+                
+                notasFiltradas = notasFiltradas.filter(nota => {
+                    const fechaNota = new Date(nota.fecha);
+                    return fechaNota >= fechaLimite;
+                });
+            }
+
+            // Filtrar por rango de fechas
+            if (fechaInicio) {
+                const inicio = new Date(fechaInicio);
+                notasFiltradas = notasFiltradas.filter(nota => new Date(nota.fecha) >= inicio);
+            }
+
+            if (fechaFin) {
+                const fin = new Date(fechaFin);
+                fin.setHours(23, 59, 59, 999);
+                notasFiltradas = notasFiltradas.filter(nota => new Date(nota.fecha) <= fin);
+            }
+
+            return notasFiltradas;
+        }
+
+        // Función para calcular estadísticas
+        function calcularEstadisticas(notas) {
+            const totalOperaciones = notas.length;
+            const personasUnicas = new Set();
+            const operacionesPorDia = {};
+            const operacionesPorRol = {};
+            let fechaMasAntigua = new Date();
+            let fechaMasReciente = new Date(0);
+
+            // Ordenar notas por fecha
+            notas.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+            notas.forEach(nota => {
+                const fecha = new Date(nota.fecha);
+                const fechaStr = fecha.toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+                
+                // Actualizar fechas extremas
+                if (fecha < fechaMasAntigua) fechaMasAntigua = fecha;
+                if (fecha > fechaMasReciente) fechaMasReciente = fecha;
+                
+                // Contar operaciones por día
+                operacionesPorDia[fechaStr] = (operacionesPorDia[fechaStr] || 0) + 1;
+                
+                // Contar operaciones por rol
+                const rol = nota.rol === 'Elaborado' ? 'Elaboración' : nota.rol;
+                operacionesPorRol[rol] = (operacionesPorRol[rol] || 0) + 1;
+                
+                // Recolectar personas únicas
+                nota.personas.forEach(persona => personasUnicas.add(persona));
+            });
+
+            // Calcular días totales
+            const diasTotales = Math.ceil((fechaMasReciente - fechaMasAntigua) / (1000 * 60 * 60 * 24)) || 1;
+            
+            return {
+                totalOperaciones,
+                personasActivas: personasUnicas.size,
+                promedioDiario: (totalOperaciones / diasTotales).toFixed(1),
+                operacionesPorDia,
+                operacionesPorRol,
+                notasRecientes: notas.slice(-10).reverse() // Últimas 10 operaciones
+            };
+        }
+
+        // Función para actualizar la interfaz
+        function actualizarDashboard() {
+            const todasLasNotas = cargarDatos();
+            console.log('Datos cargados para dashboard:', todasLasNotas);
+            
+            if (!todasLasNotas || todasLasNotas.length === 0) {
+                console.log('No hay datos para mostrar');
+                document.getElementById('totalOperaciones').textContent = '0';
+                document.getElementById('promedioDiario').textContent = '0';
+                document.getElementById('eficiencia').textContent = '0%';
+                return;
+            }
+
+            const notasFiltradas = aplicarFiltros(todasLasNotas);
+            console.log('Datos filtrados:', notasFiltradas);
+            
+            const estadisticas = calcularEstadisticas(notasFiltradas);
+            console.log('Estadísticas calculadas:', estadisticas);
+
+            // Actualizar estadísticas
+            document.getElementById('totalOperaciones').textContent = estadisticas.totalOperaciones;
+            document.getElementById('promedioDiario').textContent = estadisticas.promedioDiario;
+            
+            // Calcular eficiencia basada en el número de operaciones
+            const eficiencia = (estadisticas.totalOperaciones / 10).toFixed(1); // Ajustado para no depender de personas activas
+            document.getElementById('eficiencia').textContent = `${eficiencia}%`;
+
+            // Actualizar gráficos
+            actualizarGraficos(estadisticas);
+
+            // Actualizar tabla
+            actualizarTabla(estadisticas.notasRecientes);
+        }
+
+        // Función para actualizar gráficos
+        function actualizarGraficos(estadisticas) {
+            // Gráfico de tendencia
+            const ctxTendencia = document.getElementById('tendenciaChart').getContext('2d');
+            
+            // Destruir el gráfico anterior si existe
+            if (window.tendenciaChart && typeof window.tendenciaChart.destroy === 'function') {
+                window.tendenciaChart.destroy();
+            }
+
+            // Preparar datos para el gráfico
+            const fechas = Object.keys(estadisticas.operacionesPorDia).sort();
+            const datos = fechas.map(fecha => estadisticas.operacionesPorDia[fecha]);
+
+            // Asegurar que haya datos para mostrar
+            if (fechas.length === 0 || datos.length === 0) {
+                console.log('No hay datos suficientes para el gráfico de tendencia');
+                return;
+            }
+
+            try {
+                window.tendenciaChart = new Chart(ctxTendencia, {
+                    type: 'line',
+                    data: {
+                        labels: fechas,
+                        datasets: [{
+                            label: 'Operaciones por día',
+                            data: datos,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            tension: 0.1,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Operaciones: ${context.raw}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error al crear el gráfico de tendencia:', error);
+            }
+
+            // Gráfico de roles
+            const ctxRoles = document.getElementById('rolesChart').getContext('2d');
+            
+            // Destruir el gráfico anterior si existe
+            if (window.rolesChart && typeof window.rolesChart.destroy === 'function') {
+                window.rolesChart.destroy();
+            }
+
+            // Asegurar que haya datos para mostrar
+            const roles = Object.keys(estadisticas.operacionesPorRol);
+            const valores = Object.values(estadisticas.operacionesPorRol);
+            
+            if (roles.length === 0 || valores.length === 0) {
+                console.log('No hay datos suficientes para el gráfico de roles');
+                return;
+            }
+
+            try {
+                window.rolesChart = new Chart(ctxRoles, {
+                    type: 'doughnut',
+                    data: {
+                        labels: roles,
+                        datasets: [{
+                            data: valores,
+                            backgroundColor: ['#3498db', '#2ecc71', '#f1c40f']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right'
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error al crear el gráfico de roles:', error);
+            }
+        }
+
+        // Función para actualizar tabla
+        function actualizarTabla(notas) {
+            const tbody = document.getElementById('tablaOperaciones');
+            tbody.innerHTML = '';
+
+            notas.forEach(nota => {
+                const fecha = new Date(nota.fecha);
+                const row = document.createElement('tr');
+                
+                // Determinar clase del badge según el rol
+                let badgeClass = '';
+                let rolDisplay = nota.rol;
+                
+                switch(nota.rol) {
+                    case 'Descarga':
+                        badgeClass = 'badge-descarga';
+                        break;
+                    case 'Elaboración':
+                    case 'Elaborado':
+                        badgeClass = 'badge-elaboracion';
+                        rolDisplay = 'Elaboración';
+                        break;
+                    case 'Clasificación':
+                        badgeClass = 'badge-clasificacion';
+                        break;
+                }
+
+                row.innerHTML = `
+                    <td>${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}</td>
+                    <td><span class="badge ${badgeClass}">${rolDisplay}</span></td>
+                    <td>${nota.contenido}</td>
+                    <td><span class="badge bg-success">Completado</span></td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // Event listeners para filtros
+        document.getElementById('periodo').addEventListener('change', actualizarDashboard);
+        document.getElementById('rol').addEventListener('change', actualizarDashboard);
+        document.getElementById('fechaInicio').addEventListener('change', actualizarDashboard);
+        document.getElementById('fechaFin').addEventListener('change', actualizarDashboard);
+
+        // Sincronizar datos al cargar la página
+        sincronizarDatos();
+
+        // Inicializar dashboard
+        actualizarDashboard();
+
+        // Función para exportar a PDF
+        function exportarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const dashboard = document.querySelector('.dashboard-container');
+            
+            // Agregar título
+            doc.setFontSize(20);
+            doc.text('Dashboard de Producción', 20, 20);
+            
+            // Agregar fecha y hora
+            const fecha = new Date().toLocaleString('es-ES');
+            doc.setFontSize(10);
+            doc.text(`Generado el: ${fecha}`, 20, 30);
+
+            // Capturar y agregar estadísticas
+            const totalOps = document.getElementById('totalOperaciones').textContent;
+            const promedio = document.getElementById('promedioDiario').textContent;
+            const eficiencia = document.getElementById('eficiencia').textContent;
+
+            doc.setFontSize(12);
+            doc.text('Estadísticas Principales:', 20, 40);
+            doc.text(`Total de Operaciones: ${totalOps}`, 20, 50);
+            doc.text(`Promedio Diario: ${promedio}`, 20, 60);
+            doc.text(`Eficiencia General: ${eficiencia}`, 20, 70);
+
+            // Capturar y agregar gráficos
+            const canvasTendencia = document.getElementById('tendenciaChart');
+            const canvasRoles = document.getElementById('rolesChart');
+            
+            if (canvasTendencia) {
+                const imgDataTendencia = canvasTendencia.toDataURL('image/png');
+                doc.addImage(imgDataTendencia, 'PNG', 20, 80, 170, 100);
+            }
+            
+            if (canvasRoles) {
+                const imgDataRoles = canvasRoles.toDataURL('image/png');
+                doc.addImage(imgDataRoles, 'PNG', 20, 190, 170, 100);
+            }
+
+            // Agregar tabla de operaciones recientes
+            doc.setFontSize(12);
+            doc.text('Operaciones Recientes:', 20, 300);
+            
+            const notas = cargarDatos();
+            const notasRecientes = notas.slice(-10).reverse();
+            
+            let y = 310;
+            notasRecientes.forEach((nota, index) => {
+                if (y > 270) {
+                    doc.addPage();
+                    y = 20;
+                }
+                const fecha = new Date(nota.fecha).toLocaleString('es-ES');
+                doc.text(`${fecha} - ${nota.rol}: ${nota.contenido}`, 20, y);
+                y += 10;
+            });
+
+            // Guardar el PDF
+            doc.save('dashboard-produccion.pdf');
+        }
+
+        // Función para exportar como imagen
+        function exportarImagen() {
+            const dashboard = document.querySelector('.dashboard-container');
+            
+            html2canvas(dashboard, {
+                scale: 2,
+                useCORS: true,
+                logging: true,
+                allowTaint: true
+            }).then(canvas => {
+                // Crear enlace para descargar
+                const link = document.createElement('a');
+                link.download = 'dashboard-produccion.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html> 
